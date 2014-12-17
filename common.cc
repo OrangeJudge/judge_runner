@@ -6,14 +6,8 @@ const char * LANG_C[] = {"gcc", "main.c", "-o", "main", NULL};
 // Global variable
 std::string working_dir;
 
-// Problem data
-int time_limit = 1000;  // ms
-int memory_limit = 128;  // MB
-std::string input_path;
-
 // Solution data
 int solution_id = 0;
-std::string solution_path;
 int lang = 0;
 
 void _log(std::string s) {
