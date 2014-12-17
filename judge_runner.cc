@@ -22,6 +22,7 @@ std::string working_dir;
 // Problem data
 int time_limit = 1000;  // ms
 int memory_limit = 128;  // MB
+std::string input_path;
 
 // Solution data
 int solution_id = 0;
@@ -49,7 +50,7 @@ size_t _get_filesize(std::string filename) {
 int compile() {
     log("Compiling " + solution_path);
     _copy_file(solution_path, working_dir + "/main.c");
-    int pid = fork();
+    pid_t pid = fork();
     if (pid == 0) {  // child process
         chdir(working_dir.c_str());
         freopen("ce.txt", "w", stderr);
@@ -63,7 +64,21 @@ int compile() {
             log("Compiled without error.");
         } else {
             log("Compile error");
+            return 1;
         }
+    }
+    return 0;
+}
+
+int execute() {
+    // copy runtime
+    // limit system call
+    pid_t pid = fork();
+    if (pid == 0) {  // child process
+        chdir(working_dir);
+        exit(0);
+    } else {  // parent process
+
     }
     return 0;
 }
@@ -75,12 +90,28 @@ int main(int argc, char* argv[]) {
     system(("mkdir " + working_dir).c_str());
     
     // initialize
-    if (argc < 2) {
+    if (argc < 3) {
         std::cout << "Invalid arguments" << std::endl;
         exit(1);
     }
     solution_path = argv[1];
 
     int compile_status = compile();
+
+    if (compile_status) {
+        // compile error
+        return 0;
+    } else {
+        // update judge status
+    }
+
+    int execute_status = execute();
+
+    if (execute_status) {
+
+    } else {
+
+    }
+
     return 0;
 }
