@@ -14,10 +14,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/user.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "common.cc"
 
@@ -35,19 +38,17 @@ int execute() {
         _log("Child process starts.");
         chdir(working_dir.c_str());
         freopen("data.in", "r", stdin);
-        // freopen("user.out", "w", stdout);
+        freopen("user.out", "w", stdout);
         freopen("error.out", "a+", stderr);
         // trace the child process
-        ptrace(PT_TRACE_ME, 0, NULL, 0);
+        ptrace(PTRACE_TRACEME, 0, NULL, 0);
         // chroot(working_dir.c_str());
         // struct rlimit limit;  // an rlimit struct variable for multiple use.
         // limit.rlim_cur = limit.rlim_max = 1;
         // setrlimit(RLIMIT_CPU, &limit);
         alarm(0);
-        alarm(10);
-        _log("prepare executing");
+        alarm(1); // in second
         execl("./main", "./main", NULL);
-        _log("done.");
         exit(0);
     } else {  // parent process
         _log("Judging process: " + std::to_string(pid));
@@ -66,13 +67,14 @@ int execute() {
             // if user file too big, exit
             int exitcode = WEXITSTATUS(status);
             if (exitcode != 0 && exitcode != 5) {
+                // some kind of runtime error.
                 _log(strsignal(exitcode));
                 switch (exitcode) {
                 case SIGCHLD:
                 case SIGALRM:
                     alarm(0);
                 }
-                ptrace(PT_KILL, pid, NULL, 0);
+                ptrace(PTRACE_KILL, pid, NULL, 0);
                 break;
             }
             if (WIFSIGNALED(status)) {
@@ -81,10 +83,10 @@ int execute() {
                 _log(strsignal(sig));
                 break;
             }
-            // struct user_regs_struct reg;
-            // ptrace(PT_GETREGS, pid, NULL, &reg);
+            struct user_regs_struct reg;
+            ptrace(PT_GETREGS, pid, NULL, &reg);
             // check system call
-            // ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
+            ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
             _log("Finish loop");
         }
         _log("Finish execution.");
