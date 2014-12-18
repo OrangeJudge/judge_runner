@@ -13,6 +13,7 @@
 #include <string>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/ptrace.h>
@@ -34,7 +35,7 @@ int execute() {
         _log("Child process starts.");
         chdir(working_dir.c_str());
         freopen("data.in", "r", stdin);
-        freopen("user.out", "w", stdout);
+        // freopen("user.out", "w", stdout);
         freopen("error.out", "a+", stderr);
         // trace the child process
         ptrace(PT_TRACE_ME, 0, NULL, 0);
@@ -43,8 +44,10 @@ int execute() {
         // limit.rlim_cur = limit.rlim_max = 1;
         // setrlimit(RLIMIT_CPU, &limit);
         alarm(0);
-        alarm(1);
+        alarm(10);
+        _log("prepare executing");
         execl("./main", "./main", NULL);
+        _log("done.");
         exit(0);
     } else {  // parent process
         _log("Judging process: " + std::to_string(pid));
