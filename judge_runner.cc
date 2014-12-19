@@ -33,6 +33,7 @@ int execute() {
     // copy runtime
     // limit system call
     _copy_file(input_path, working_dir + "/data.in");
+    int time_limit_s = time_limit / 1000 + 1;
     pid_t pid = fork();
     if (pid == 0) {  // child process
         _log("Child process starts.");
@@ -42,13 +43,54 @@ int execute() {
         freopen("error.out", "a+", stderr);
         // trace the child process
         ptrace(PTRACE_TRACEME, 0, NULL, 0);
-        // chroot(working_dir.c_str());
-        // struct rlimit limit;  // an rlimit struct variable for multiple use.
-        // limit.rlim_cur = limit.rlim_max = 1;
-        // setrlimit(RLIMIT_CPU, &limit);
-        alarm(0);
-        alarm(1); // in second
-        execl("./main", "./main", NULL);
+        chroot(working_dir.c_str());  // cannot do so for java
+        // set limits
+        struct rlimit limit;  // an rlimit struct variable for multiple use.
+        // Limit CPU time
+        limit.rlim_cur = limit.rlim_max = time_limit_s;
+        setrlimit(RLIMIT_CPU, &limit);
+        // Limit file size
+        limit.rlim_cur = MAX_FILE_SIZE * MEGABYTE;
+        limit.rlim_max = (MAX_FILE_SIZE + 1) * MEGABYTE;
+        setrlimit(RLIMIT_FSIZE, &limit);
+        // Limit number of process
+        if (lang == LANG_JAVA) {
+            limit.rlim_cur = limit.rlim_max = 50;
+        } else { // C, C++, Python
+            limit.rlim_cur = limit.rlim_max = 1;
+        }
+        setrlimit(RLIMIT_NPROC, &limit);
+        // Limit the stack size
+        limit.rlim_cur = limit.rlim_max = MAX_STACK_SIZE * MEGABYTE;
+        setrlimit(RLIMIT_STACK, &limit);
+        // Limit the memory
+        if (lang == LANG_C || lang == LANG_CPP) {
+            limit.rlim_cur = memory_limit * MEGABYTE / 2 * 3;
+            limit.rlim_max = memory_limit * MEGABYTE * 2;
+            setrlimit(RLIMIT_AS, &limit);
+        }
+        // set alarm in case the CPU time limit does not work
+        alarm(0); // clear alarm
+        alarm(time_limit_s + 10); // set alarm in second
+        // execute the program
+        switch(lang) {
+        case LANG_C:
+        case LANG_CPP:
+            execl("./main", "./main", NULL);
+            break;
+        case LANG_JAVA:
+            {
+                std::string java_xms = "-Xms32m";
+                std::string java_xmx = "-Xmx" + std::to_string(memory_limit * 2) + "m";
+                execl("/usr/bin/java", "/usr/bin/java", java_xms.c_str(), java_xmx.c_str(),
+                    "-Djava.security.manager",
+                    "-Djava.security.policy=./java.policy", "Main", (char *) NULL);
+            }
+            break;
+        case LANG_PYTHON:
+            execl("/python", "/python", "main.py", (char *) NULL);
+            break;
+        }
         exit(0);
     } else {  // parent process
         _log("Judging process: " + std::to_string(pid));
@@ -68,6 +110,7 @@ int execute() {
             int exitcode = WEXITSTATUS(status);
             if (exitcode != 0 && exitcode != 5) {
                 // some kind of runtime error.
+                _log("Runtime error.");
                 _log(strsignal(exitcode));
                 switch (exitcode) {
                 case SIGCHLD:
@@ -83,11 +126,11 @@ int execute() {
                 _log(strsignal(sig));
                 break;
             }
-            struct user_regs_struct reg;
-            ptrace(PT_GETREGS, pid, NULL, &reg);
             // check system call
-            ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
-            _log("Finish loop");
+            struct user_regs_struct reg;
+            ptrace(PTRACE_GETREGS, pid, NULL, &reg);
+            // to make it continue
+            ptrace(PTRACE_SYSCALL, pid, NULL, 0);
         }
         _log("Finish execution.");
     }

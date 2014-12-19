@@ -28,7 +28,7 @@ int compile() {
     if (pid == 0) {  // child process
         chdir(working_dir.c_str());
         freopen("ce.txt", "w", stderr);
-        execvp(LANG_C[0], (char * const *) LANG_C);
+        execvp(COMPILE_C[0], (char * const *) COMPILE_C);
         _log("Done compile.");
         exit(0);
     } else {  // parent process

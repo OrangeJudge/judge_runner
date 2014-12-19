@@ -1,7 +1,16 @@
 // Config
 bool DEBUG = true;
 std::string JUDGE_HOME = "/usr/local/judge_runner";
-const char * LANG_C[] = {"gcc", "main.c", "-o", "main", NULL};
+const char * COMPILE_C[] = {"gcc", "main.c", "-o", "main", NULL};
+
+#define LANG_C 0
+#define LANG_CPP 1
+#define LANG_JAVA 2
+#define LANG_PYTHON 3
+
+#define MEGABYTE 1024*1024
+#define MAX_FILE_SIZE 32
+#define MAX_STACK_SIZE 64
 
 // Global variable
 std::string working_dir;
